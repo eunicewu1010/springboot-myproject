@@ -116,7 +116,7 @@
         <h1>🌟 歡迎來到使用者頁面 🌟</h1>
         <div class="button-group">
             <button onclick="location.href='reservation'">🍽️ 來去訂位</button>
-            <button onclick="location.href='reservation/history'">📖 歷史訂單查詢</button>
+            <button onclick="location.href='reservation/history'">📖 歷史訂位查詢</button>
             <button onclick="location.href='profile'">📝 查看會員資料</button>
         </div>
     </div>
