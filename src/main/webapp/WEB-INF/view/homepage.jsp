@@ -612,6 +612,9 @@
         <div class="footer-bottom">
             <p>&copy; 2025 喵喵貓咖 All Rights Reserved. | 與貓咪一起創造美好回憶 🐾</p>
         </div>
+     <jsp:include page="/WEB-INF/view/chatbot.jsp"/>
+        
+        
     </footer>
 
     <script>
