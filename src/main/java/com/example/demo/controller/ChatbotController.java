@@ -1,5 +1,7 @@
 package com.example.demo.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -12,39 +14,72 @@ import java.util.Map;
 public class ChatbotController {
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @PostMapping("/ask")
-    public Map<String, Object> ask(@RequestBody Map<String, String> payload) {
-        String userMessage = payload.get("message");
+    public ResponseEntity<Map<String, String>> ask(@RequestBody Map<String, String> payload) {
+        String userMessage = payload.getOrDefault("message", "");
 
-        // 組裝 Ollama API 的請求
-        String url = "http://localhost:11434/api/generate";  // Ollama 預設在本機跑
-        Map<String, Object> request = new HashMap<>();
-        request.put("model", "llama3");   // 你有下載的模型名稱
-        request.put("prompt", userMessage);
+        // ✅ 系統提示，強制 Ollama 輸出繁體中文
+        String finalPrompt = "請你無論收到什麼訊息，都要用繁體中文回答。\n使用者訊息：" + userMessage;
+
+        String url = "http://localhost:11434/api/generate"; // Ollama API
+
+        // 組 request body，確保 stream = false
+        Map<String, Object> req = new HashMap<>();
+        req.put("model", "llama3");   // 確認這是你有的模型名稱
+        req.put("prompt", finalPrompt);
+        req.put("stream", false);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(req, headers);
 
         try {
-            // 呼叫 Ollama API
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            ResponseEntity<String> resp = restTemplate.postForEntity(url, entity, String.class);
+            String body = resp.getBody() == null ? "" : resp.getBody().trim();
 
-            // Ollama 回傳格式裡面，最終回答通常在 "response"
-            Map<String, Object> result = new HashMap<>();
-            if (response.getBody() != null) {
-                result.put("reply", response.getBody().get("response"));
-            } else {
-                result.put("reply", "抱歉，我暫時無法回答。");
+            if (!resp.getStatusCode().is2xxSuccessful()) {
+                Map<String, String> err = new HashMap<>();
+                err.put("reply", "⚠️ Ollama 回傳錯誤狀態: " + resp.getStatusCodeValue());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
             }
-            return result;
+
+            String replyText = null;
+            try {
+                String candidate = body;
+                if (body.contains("\n")) {
+                    String[] lines = body.split("\\r?\\n");
+                    for (int i = lines.length - 1; i >= 0; i--) {
+                        if (!lines[i].trim().isEmpty()) {
+                            candidate = lines[i].trim();
+                            break;
+                        }
+                    }
+                }
+                JsonNode node = mapper.readTree(candidate);
+                if (node.has("response")) {
+                    replyText = node.get("response").asText();
+                } else if (node.has("text")) {
+                    replyText = node.get("text").asText();
+                } else if (node.has("output")) {
+                    replyText = node.get("output").asText();
+                } else {
+                    replyText = node.isTextual() ? node.asText() : node.toString();
+                }
+            } catch (Exception ex) {
+                replyText = body.isEmpty() ? "⚠️ 無法解析 Ollama 回應" : body;
+            }
+
+            Map<String, String> result = new HashMap<>();
+            result.put("reply", replyText.trim());
+            return ResponseEntity.ok(result);
+
         } catch (Exception e) {
             e.printStackTrace();
-            Map<String, Object> error = new HashMap<>();
-            error.put("reply", "後端錯誤：" + e.getMessage());
-            return error;
+            Map<String, String> err = new HashMap<>();
+            err.put("reply", "⚠️ 伺服器錯誤：" + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
 }

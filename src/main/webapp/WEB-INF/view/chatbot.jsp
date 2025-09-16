@@ -128,27 +128,44 @@
 
     // 送出訊息
     async function sendMessage() {
-        const msg = chatInput.value.trim();
-        if(!msg) return;
+    const msg = chatInput.value.trim();
+    if (!msg) return;
 
-        appendMessage(msg, "user");
-        saveMessage(msg, "user");
-        chatInput.value = "";
+    appendMessage(msg, "user");
+    saveMessage(msg, "user");
+    chatInput.value = "";
 
-        try {
-            const response = await fetch("/chatbot/ask", {
-                method: "POST",
-                headers: {"Content-Type":"application/json"},
-                body: JSON.stringify({message: msg})
-            });
+    try {
+        const res = await fetch("/chatbot/ask", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ message: msg })
+        });
 
-            const data = await response.json();
-            appendMessage(data.reply, "bot");
-            saveMessage(data.reply, "bot");
-        } catch(err) {
-            appendMessage("❌ 系統錯誤，請稍後再試", "bot");
+        // 先嘗試以 JSON 解析；若不是 JSON 則當作純文字
+        let data;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            data = await res.json();
+        } else {
+            const text = await res.text();
+            data = { reply: text };
         }
+
+        if (!res.ok) {
+            // 把後端回傳的錯誤訊息顯示出來（如果有）
+            appendMessage("❌ 後端錯誤：" + (data.reply || res.statusText), "bot");
+            console.error("Backend error:", res.status, data);
+        } else {
+            appendMessage(data.reply || "⚠️ 無回覆內容", "bot");
+            saveMessage(data.reply || "", "bot");
+        }
+    } catch (err) {
+        console.error("Fetch error:", err);
+        appendMessage("❌ 系統錯誤，請稍後再試", "bot");
     }
+}
+
 
     window.onload = loadHistory;
 </script>
