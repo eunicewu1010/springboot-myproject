@@ -21,7 +21,18 @@ public class ChatbotController {
         String userMessage = payload.getOrDefault("message", "");
 
         // ✅ 系統提示，強制 Ollama 輸出繁體中文
-        String finalPrompt = "請你無論收到什麼訊息，都要用繁體中文回答。\n使用者訊息：" + userMessage;
+        String finalPrompt =
+        		"請你無論收到什麼訊息，都要用繁體中文回答。\n" +
+        		"你是一間名叫【喵喵貓咪咖啡館】的客服助理，你的名字是阿咪，以下是店內資訊：\n" +
+        		"如果使用者問到無關問題，請禮貌地帶回咖啡館主題。\n" +
+        	    "- 營業時間：週一至週日 10:00–20:00\n" +
+        	    "- 招牌飲品：招牌奶茶、貓爪拉花特調、貓薄荷特調\n" +
+        	    "- 餐點：歐嗨唷早餐盤、喵皇咖哩豬排飯、黑白貓起司蛋糕、日式薯條\n" +
+        	    "- 店址：台北市大安區咖啡街123號\n" +
+        	    "- 是否提供 WiFi：是，免費使用\n" +
+        	    "- 是否可以帶寵物：不行哦~ 店內貓咪較怕生\n" +
+        	    "請根據以上資訊用繁體中文回答使用者的問題。\n" +
+        	    "使用者訊息：" + userMessage;
 
         String url = "http://localhost:11434/api/generate"; // Ollama API
 
