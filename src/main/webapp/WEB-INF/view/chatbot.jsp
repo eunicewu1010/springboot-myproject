@@ -12,7 +12,7 @@
 
 <!-- 聊天視窗 -->
 <div id="chatbot-window" 
-     style="position:fixed; bottom:85px; right:20px; width:250px; height:300px; 
+     style="position:fixed; bottom:85px; right:20px; width:250px; height:280px; 
             background:linear-gradient(145deg,#D4A574,#8B4513); 
             border-radius:15px; display:none; flex-direction:column; 
             box-shadow:0 6px 18px rgba(0,0,0,0.25); overflow:hidden;">
@@ -22,7 +22,7 @@
         客服小幫手 ☕
     </div>
 
-    <!-- 訊息區改用 flex 方式排列，讓左右對齊生效 -->
+    <!-- 訊息區 -->
     <div id="chat-messages" style="flex:1; padding:8px; overflow-y:auto; 
                                    font-size:13px; scroll-behavior:smooth;
                                    display:flex; flex-direction:column;">
@@ -54,7 +54,7 @@
         color:#8B4513;
     }
 
-    /* 使用者訊息樣式：靠右、根據字數調整寬度 */
+    /* 使用者訊息樣式 */
     #chat-messages .msg.user {
         display: inline-block;
         max-width: 80%;
@@ -66,10 +66,10 @@
         border-radius:10px 10px 2px 10px;
         margin:3px 0;
         animation: fadeIn 0.3s ease;
-        align-self:flex-end;   /* 讓使用者訊息靠右 */
+        align-self:flex-end;
     }
 
-    /* 機器人訊息樣式：靠左、根據字數調整寬度 */
+    /* 機器人訊息樣式 */
     #chat-messages .msg.bot {
         display: inline-block;
         max-width: 80%;
@@ -81,12 +81,38 @@
         border-radius:10px 10px 10px 2px;
         margin:3px 0;
         animation: fadeIn 0.3s ease;
-        align-self:flex-start; /* 讓機器人訊息靠左 */
+        align-self:flex-start;
     }
 
     @keyframes fadeIn {
         from {opacity:0; transform:translateY(5px);}
         to {opacity:1; transform:translateY(0);}
+    }
+
+    /* ☕ 打字中動畫 */
+    .typing {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 8px;
+        background: #8B4513;
+        color: white;
+        border-radius: 10px 10px 10px 2px;
+        margin: 3px 0;
+        align-self: flex-start;
+        font-size: 14px;
+    }
+
+    .steam {
+        font-size: 10px;
+        margin-left: 4px;
+        animation: steamUp 1.5s infinite;
+        opacity: 0.7;
+    }
+
+    @keyframes steamUp {
+        0% { transform: translateY(5px); opacity: 0.2; }
+        50% { transform: translateY(-2px); opacity: 1; }
+        100% { transform: translateY(-6px); opacity: 0; }
     }
 </style>
 
@@ -101,71 +127,81 @@
         chatbotWindow.style.display = chatbotWindow.style.display === "none" ? "flex" : "none";
     });
 
-    // 載入 localStorage 聊天紀錄
-    function loadHistory() {
-        const history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
-        messagesDiv.innerHTML = "";
-        history.forEach(msg => {
-            appendMessage(msg.text, msg.sender);
-        });
-    }
-
-    // 儲存訊息
-    function saveMessage(text, sender) {
-        const history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
-        history.push({text, sender});
-        localStorage.setItem("chatHistory", JSON.stringify(history));
-    }
-
-    // 顯示訊息並對齊
-    function appendMessage(text, sender) {
+    // 顯示訊息
+    function appendMessage(text, sender, typingEffect = false) {
         const div = document.createElement("div");
         div.classList.add("msg", sender);
-        div.textContent = text;
+
+        if (typingEffect) {
+            let i = 0;
+            const interval = setInterval(() => {
+                div.textContent = text.substring(0, i++);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                if (i > text.length) clearInterval(interval);
+            }, 40); // 打字機速度
+        } else {
+            div.textContent = text;
+        }
+
         messagesDiv.appendChild(div);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
+    // 顯示咖啡杯冒煙動畫
+    function showTyping() {
+        const typingDiv = document.createElement("div");
+        typingDiv.classList.add("typing");
+        typingDiv.id = "typing-indicator";
+        typingDiv.innerHTML = "☕ <span class='steam'>~</span><span class='steam'>~</span><span class='steam'>~</span>";
+        messagesDiv.appendChild(typingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // 移除動畫
+    function hideTyping() {
+        const typingDiv = document.getElementById("typing-indicator");
+        if (typingDiv) typingDiv.remove();
+    }
+
     // 送出訊息
     async function sendMessage() {
-    const msg = chatInput.value.trim();
-    if (!msg) return;
+        const msg = chatInput.value.trim();
+        if (!msg) return;
 
-    appendMessage(msg, "user");
-    saveMessage(msg, "user");
-    chatInput.value = "";
+        appendMessage(msg, "user");
+        chatInput.value = "";
 
-    try {
-        const res = await fetch("/chatbot/ask", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ message: msg })
-        });
+        // 顯示動畫
+        showTyping();
 
-        // 先嘗試以 JSON 解析；若不是 JSON 則當作純文字
-        let data;
-        const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-            data = await res.json();
-        } else {
-            const text = await res.text();
-            data = { reply: text };
+        try {
+            const res = await fetch("/chatbot/ask", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ message: msg })
+            });
+
+            let data;
+            const contentType = res.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                data = { reply: text };
+            }
+
+            hideTyping();
+
+            if (!res.ok) {
+                appendMessage("❌ 後端錯誤：" + (data.reply || res.statusText), "bot");
+                console.error("Backend error:", res.status, data);
+            } else {
+                appendMessage(data.reply || "⚠️ 無回覆內容", "bot", true);
+            }
+        } catch (err) {
+            hideTyping();
+            console.error("Fetch error:", err);
+            appendMessage("❌ 系統錯誤，請稍後再試", "bot");
         }
-
-        if (!res.ok) {
-            // 把後端回傳的錯誤訊息顯示出來（如果有）
-            appendMessage("❌ 後端錯誤：" + (data.reply || res.statusText), "bot");
-            console.error("Backend error:", res.status, data);
-        } else {
-            appendMessage(data.reply || "⚠️ 無回覆內容", "bot");
-            saveMessage(data.reply || "", "bot");
-        }
-    } catch (err) {
-        console.error("Fetch error:", err);
-        appendMessage("❌ 系統錯誤，請稍後再試", "bot");
     }
-}
-
-
-    window.onload = loadHistory;
 </script>
