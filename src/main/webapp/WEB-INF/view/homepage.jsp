@@ -597,7 +597,7 @@
             <div class="footer-section">
                 <h3>📞 聯絡電話</h3>
                 <p>(02) 2345-6789</p>
-                <p>營業時間：10:00 - 20:00</p>
+                <p>營業時間：周一到周日 10:00 - 20:00</p>
             </div>
             <div class="footer-section">
                 <h3>✉️ 電子信箱</h3>

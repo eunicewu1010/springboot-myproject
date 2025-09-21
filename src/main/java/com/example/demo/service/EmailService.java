@@ -10,7 +10,8 @@ import org.springframework.stereotype.Service;
 public class EmailService {
     
     // Google應用程式密碼（建議用 application.properties 配置）
-    private final String googleAppPassword = "ubst xakp egjn efol";
+    private final String googleAppPassword = "pwlb bsoz ayud hlqj";
+    		
     private final String from = "wu.eunice1010@gmail.com";
     
     public void sendEmail(String to, String confirmUrl) {
